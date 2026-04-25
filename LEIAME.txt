@@ -1,0 +1,14 @@
+Vitor Augusto Gabriel Machado
+GRR20252066
+
+Relatório do Trabalho 1 de Programação 2
+
+Lista de arquivos: gbv.c biblioteca.c biblioteca.h
+
+biblioteca.h: Nesse arquivo está a definição de todas as funções, que depois foram implementadas em biblioteca.c, esse arquivo guarda funções como o gbvVizualizar, gbvRemove, etc. Em suma, tudo que era essencial que o programa fizesse está definido aqui.
+
+biblioteca.c: Esse arquivo é a implementação das funções definidas em biblioteca.h, além delas, existe as funções que foram usadas como auxiliares para as funções essenciais, como a escreverArquivoNoGBV, que poderia estar dentro da função gbvAdicionar, mas, por questão de modularidade, preferi separar em funções diferentes.
+
+gbv.c: Nesse arquivo tem o main do programa, ou seja, é o arquivo principal. O arquivo só trata sobre a biblioteca .gbv que o usuário está adicionando, caso ela exista ou não exista, no segundo caso o programa irá criar sozinho a biblioteca .gbv com o nome que o usuário colocou.
+
+Dificuldades encontradas: De início, a minha maior dificuldade foi definir como a biblioteca devia ser criada, como eu falava acima, depois de um tempo decidi por fazer a implementação que considerava a existência da biblioteca .gbv, ou não, e nesse caso o programa criava. Isso foi uma dificuldade pois, eu estava criando a biblioteca por mim mesmo, e não deixando para o programa criar, mas isso fazia com que o programa reconhecesse a existência de um arquivo .gbv, mas nele só existia lixo de memória, o que levava a segfault. Então minha decisão foi, a primeira vez que o programa é usado, o usuário deve colocar um arquivo .gbv inexistente, pois assim o programa irá criar com a área para o diretório e para o superbloco corretamente, se o usuário criar a biblioteca com comandos tipo, touch <arquivo>.gbv, irá ocasionar em erro. Minha segunda maior dificuldade foi perto do final do trabalho, quando eu estava fazendo a função gbvVizualizar, pois eu não conseguia limitar ela direito, por exemplo, o arquivo tinha um tamanho menor que o buffer de vizualização, e eu estava imprimindo pelo tamanho do buffer, o que fazia com que fosse impresso dados que não eram os dados corretos. Eu me bati nisso por um dia inteiro, até que decidi refazer a função do zero e começou a fluir o processo, eu fiz o tamanho restante atualizar a cada loop e comparar se o tamanho restante era maior ou menor que o buffer, pois caso ele fosse menor eu usaria uma variável recebendo o valor do tamanho restante para ler o resto, e não somente o buffer para leitura.
