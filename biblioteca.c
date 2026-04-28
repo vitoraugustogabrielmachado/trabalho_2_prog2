@@ -29,7 +29,7 @@ void gbvListar(biblioteca *biblio){
         aux = localtime(&biblio->dir[i].data);
         printf("Data: %02d/%02d/%04d\n", aux->tm_mday, aux->tm_mon + 1, aux->tm_year + 1900);
         printf("Hora: %02d:%02d:%02d\n", aux->tm_hour, aux->tm_min, aux->tm_sec);
-    
+        printf("\n");
     }
 }
 
@@ -133,7 +133,7 @@ void avancarOuVoltar(char teclaEscolhida, long int inicioLeitura, long int fimLe
     switch(teclaEscolhida){
         case 'p':
             if(*offsetAtual < inicioLeitura)
-                printf("nao tem como voltar");
+                printf("Não é possível voltar");
             else{
                 if(*offsetAtual == fimLeitura)
                     *offsetAtual -= tamanhoLeitura;
@@ -145,7 +145,7 @@ void avancarOuVoltar(char teclaEscolhida, long int inicioLeitura, long int fimLe
             break;
         case 'n':
             if(*offsetAtual > fimLeitura)
-                printf("nao tem como avancar");
+                printf("Não é possível avançar");
             else{
                 *offsetAtual += BUFFER_SIZE_VISUALIZAR;
                 if(*offsetAtual > fimLeitura)
@@ -241,6 +241,10 @@ int compararNomes(const void *a, const void *b){
 }
 
 void gbvOrdenar(char *argv[], biblioteca *biblio, FILE *GBV){
+    if(argv[3] == NULL){
+        printf("Comando invalido, rerun com: ./gbv -o %s <tipo de ordenação>\n", argv[2]);
+        return;
+    }
     char *opcao = argv[3];
     if(strcmp(opcao, "nome") == 0)
         qsort(biblio->dir, biblio->sup->numeroDoc, sizeof(documento), compararNomes);

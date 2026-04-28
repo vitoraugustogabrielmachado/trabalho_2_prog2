@@ -50,7 +50,7 @@ void opcoes(int argc, char *argv[], biblioteca *biblio, FILE *GBV){
 int main(int argc, char *argv[]){
     biblioteca *biblio = malloc(sizeof(biblioteca));
 
-    if(argc < 2){ //Caso o usuario não coloque a biblioteca na execução do programa
+    if(argc < 3){ //Caso o usuario não coloque a biblioteca na execução do programa
         printf("Comando invalido\n");
         return(0);
     }
