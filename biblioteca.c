@@ -5,13 +5,13 @@
 #include "biblioteca.h"
 
 super *inicializarSuperbloco(){
-    super *aux = malloc(sizeof(super));
+    super *aux = calloc(1, sizeof(super));
     if(aux == NULL){
         printf("Alocacao mal-sucedida\n");
         return(NULL);
     }
     aux->numeroDoc = 0;
-    aux->offsetCont = sizeof(super);
+    aux->offsetCont = sizeof(super) + 4 * sizeof(char);
     return(aux);
 }
 
@@ -33,7 +33,7 @@ void gbvListar(biblioteca *biblio){
     }
 }
 
-int escreverArquivoNoGBV(FILE *GBV, FILE *novo, super *sup){ //trocar a ordem
+int escreverArquivoNoGBV(FILE *GBV, FILE *novo, super *sup){ 
     int bytes_lidos = 0, lidos = 0;
     char buffer[BUFFER_SIZE_ESCRITA];
 
@@ -60,8 +60,9 @@ int verificarRepeticao(documento *dir, char nome_procurado[], int tamanhoMaximo,
 
 documento *adicionarArquivoNoDiretorio(biblioteca *biblio, char *argv[], int posicao, int lidos){
     int repetido = 0;
-    documento novo_arq; 
+    documento novo_arq;
 
+    memset(&novo_arq, 0, sizeof(documento));
     strcpy(novo_arq.nome, argv[posicao]); 
     novo_arq.tamanho = lidos;
     novo_arq.offset = biblio->sup->offsetCont;
@@ -77,6 +78,15 @@ documento *adicionarArquivoNoDiretorio(biblioteca *biblio, char *argv[], int pos
     }
     return(biblio->dir);
 
+}
+
+//funcao para escrever no superblock e diretorio
+void escreverSuperblocoDiretorio(biblioteca *biblio, FILE *GBV){
+    fseek(GBV, biblio->sup->offsetCont, SEEK_SET); //procuro onde escrever o diretorio
+    fwrite(biblio->dir, sizeof(documento), biblio->sup->numeroDoc, GBV);
+
+    fseek(GBV, sizeof(int), SEEK_SET); //procuro onde escrever o superbloco
+    fwrite(biblio->sup, sizeof(super), 1, GBV);
 }
 
 void gbvAdicionar(int tam, char *argv[], biblioteca *biblio, FILE *GBV){
@@ -96,12 +106,7 @@ void gbvAdicionar(int tam, char *argv[], biblioteca *biblio, FILE *GBV){
             printf("Documento %s inexistente\n", argv[i]);
         }
     }
-
-    fseek(GBV, biblio->sup->offsetCont, SEEK_SET); //procuro onde escrever o diretorio
-    fwrite(biblio->dir, sizeof(documento), biblio->sup->numeroDoc, GBV);
-
-    fseek(GBV, 0, SEEK_SET); //procuro onde escrever o superbloco
-    fwrite(biblio->sup, sizeof(super), 1, GBV);
+    escreverSuperblocoDiretorio(biblio, GBV);
 }
 
 void gbvRemover(int tam, char *argv[], biblioteca *biblio, FILE *GBV){
@@ -116,17 +121,17 @@ void gbvRemover(int tam, char *argv[], biblioteca *biblio, FILE *GBV){
                 biblio->dir[posicao_repeticao] = biblio->dir[biblio->sup->numeroDoc - 1];
 
             biblio->sup->numeroDoc--;
-            biblio->dir = realloc(biblio->dir, biblio->sup->numeroDoc * sizeof(documento));
+            if(biblio->sup->numeroDoc == 0){
+                free(biblio->dir);
+                biblio->dir = NULL;
+            }else
+                biblio->dir = realloc(biblio->dir, biblio->sup->numeroDoc * sizeof(documento));
         }else{
             printf("Documento inexistente na biblioteca\n"); //se nao existe o nome do arquivo nn tem como remover
             return;
         }
     }
-    fseek(GBV, biblio->sup->offsetCont, SEEK_SET); //procuro onde escrever o diretorio
-    fwrite(biblio->dir, sizeof(documento), biblio->sup->numeroDoc, GBV);
-
-    fseek(GBV, 0, SEEK_SET); //procuro onde escrever o superbloco
-    fwrite(biblio->sup, sizeof(super), 1, GBV);
+    escreverSuperblocoDiretorio(biblio, GBV);
 }
 
 void avancarOuVoltar(char teclaEscolhida, long int inicioLeitura, long int fimLeitura, long int tamanhoLeitura, long int *offsetAtual){

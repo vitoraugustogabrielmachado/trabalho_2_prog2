@@ -1,28 +1,49 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <string.h>
 #include "biblioteca.h"
+
+int verificarValidade(char marca[], FILE **GBV){
+    char *verificar = malloc(4 * sizeof(char));
+
+    fseek(*GBV, 0, SEEK_SET);
+    fread(verificar, sizeof(char), 3, *GBV);
+    verificar[3] = '\0';
+    if(strcmp(marca, verificar) != 0){
+        printf("Biblioteca inválida\n");
+        return(0);
+    }
+    free(verificar);
+    return(1);
+}
 
 /*A funcao verifica se a biblioteca existe ou não, se não a funcao cria ela e escreve o superbloco zerado
 dentro dela, se sim a funcao le do arquivo as informaçoes*/
-void leitura_arquivo(FILE **GBV, biblioteca *biblio, char *argv[]){
+int leitura_arquivo(FILE **GBV, biblioteca *biblio, char *argv[]){
     biblio->sup = inicializarSuperbloco();
-
+    char *marca = "GBV";
     if(*GBV == NULL){
         *GBV = fopen(argv[2], "wb+");
         biblio->dir = NULL;
         fseek(*GBV, 0, SEEK_SET);
+        fwrite(marca, sizeof(int), 1, *GBV);
+        fseek(*GBV, sizeof(int), SEEK_SET);
         fwrite(biblio->sup, 1, sizeof(super), *GBV);
     }else{
+        if(verificarValidade(marca, GBV) == 0)
+            return(0);
+        fseek(*GBV, sizeof(int), SEEK_SET);
         fread(biblio->sup, sizeof(super), 1, *GBV);
         biblio->dir = malloc(biblio->sup->numeroDoc * sizeof(documento));
         if(biblio->dir == NULL){
             printf("Alocacao mal-sucedida\n");
-            return;
+            return(0);
         }
         fseek(*GBV, biblio->sup->offsetCont, SEEK_SET);
         fread(biblio->dir, sizeof(documento), biblio->sup->numeroDoc, *GBV);
     }
+    return(1);
 }
 
 /*Trata das flags quando o programa é executado*/
@@ -60,7 +81,8 @@ int main(int argc, char *argv[]){
     }
 
     FILE *GBV = fopen(argv[2], "rb+");
-    leitura_arquivo(&GBV, biblio, argv);
+    if(leitura_arquivo(&GBV, biblio, argv) == 0)
+        return(0);
     opcoes(argc, argv, biblio, GBV);
 
     if(biblio->sup != NULL)
@@ -70,4 +92,5 @@ int main(int argc, char *argv[]){
     if(biblio != NULL)
         free(biblio);
     fclose(GBV);
+    return(1);
 }
