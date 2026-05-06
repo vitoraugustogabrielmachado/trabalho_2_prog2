@@ -65,6 +65,9 @@ void opcoes(int argc, char *argv[], biblioteca *biblio, FILE *GBV){
         case 'o':
             gbvOrdenar(argv, biblio, GBV); //Ordena a biblioteca baseado na flag no momento da execução do programa
             break;
+        case 'e':
+            gbvExtrair(argv, biblio, GBV);
+            break;
     }
 }
 

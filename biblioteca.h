@@ -35,4 +35,6 @@ void gbvListar(biblioteca *biblio);
 
 void gbvOrdenar(char *argv[], biblioteca *biblio, FILE *GBV);
 
+void gbvExtrair(char *argv[], biblioteca *biblio, FILE *GBV);
+
 #endif
