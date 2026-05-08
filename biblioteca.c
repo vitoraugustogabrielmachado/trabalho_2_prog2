@@ -55,10 +55,50 @@ int verificarRepeticao(documento *dir, char nome_procurado[], int tamanhoMaximo,
     return(0);
 }
 
+void removerDados(biblioteca *biblio, int posicaoRepetida, FILE *GBV){
+    long int maxLeitura = biblio->dir[biblio->sup->numeroDoc - 1].offset + biblio->dir[biblio->sup->numeroDoc - 1].tamanho;
+    long int inicioLeitura = biblio->dir[posicaoRepetida].offset;
+    char buffer[BUFFER_SIZE_VISUALIZAR];
+    if(biblio->sup->numeroDoc == 1){
+        biblio->sup->offsetCont = biblio->dir[posicaoRepetida].offset;
+    }else{
+        long int atualLeitura = biblio->dir[posicaoRepetida + 1].offset;
+        long int restante = 0;
+        long int tamanhoLeitura = 0;
+        while(1){
+            restante = maxLeitura - atualLeitura;
+            if(restante <= 0)
+                break;
+            if(restante < BUFFER_SIZE_VISUALIZAR)
+                tamanhoLeitura = restante;
+            else
+                tamanhoLeitura = BUFFER_SIZE_VISUALIZAR;
+            
+            fseek(GBV, atualLeitura, SEEK_SET);
+            fread(buffer, 1, tamanhoLeitura, GBV);
+            atualLeitura += tamanhoLeitura;
+
+            fseek(GBV, inicioLeitura, SEEK_SET);
+            fwrite(buffer, 1, tamanhoLeitura, GBV);
+            inicioLeitura += tamanhoLeitura;
+        }
+        
+        long int tamanhoRemovido = biblio->dir[posicaoRepetida].tamanho;
+        for(int i = posicaoRepetida + 1; i < biblio->sup->numeroDoc; i++){
+            biblio->dir[i].offset -= tamanhoRemovido;
+        }
+        for(int i = posicaoRepetida; i < biblio->sup->numeroDoc - 1; i++){
+            biblio->dir[i] = biblio->dir[i + 1];
+        }
+        biblio->sup->offsetCont -= tamanhoRemovido;
+    }
+        
+}
+
 
 //na vdd eh o offset do ultimo arquivo antigo + o tamanho do ultimo novo
 
-documento *adicionarArquivoNoDiretorio(biblioteca *biblio, char *argv[], int posicao, int lidos){
+documento *adicionarArquivoNoDiretorio(biblioteca *biblio, char *argv[], int posicao, int lidos, FILE *GBV){
     int repetido = 0;
     documento novo_arq;
 
@@ -70,7 +110,8 @@ documento *adicionarArquivoNoDiretorio(biblioteca *biblio, char *argv[], int pos
     biblio->sup->offsetCont += lidos;
 
     if(verificarRepeticao(biblio->dir, novo_arq.nome, biblio->sup->numeroDoc, &repetido) == 1){ //comparo se ja existe um arquivo com o msm nome
-        biblio->dir[repetido] = novo_arq; //caso sim, eu faço com que seja substituido o arquivo antigo pelo novo, nao apagando os dados
+        removerDados(biblio, repetido, GBV);
+        biblio->dir[biblio->sup->numeroDoc - 1] = novo_arq; //caso sim, eu faço com que seja substituido o arquivo antigo pelo novo, nao apagando os dados
     }else{
         biblio->sup->numeroDoc++; 
         biblio->dir = realloc(biblio->dir, biblio->sup->numeroDoc * sizeof(documento));
@@ -97,13 +138,17 @@ void gbvAdicionar(int tam, char *argv[], biblioteca *biblio, FILE *GBV){
     }
 
     for(int i = 3; i < tam; i++){ //se tiver 
-        FILE *novo = fopen(argv[i], "rb");
-        if(novo != NULL){
-            lidos = escreverArquivoNoGBV(GBV, novo, biblio->sup); //a funcao retorna a quantidade de bytes lidos
-            biblio->dir = adicionarArquivoNoDiretorio(biblio, argv, i, lidos);
-            fclose(novo);
-        }else{
-            printf("Documento %s inexistente\n", argv[i]);
+        if(strcmp(argv[i], argv[2]) == 0)
+            printf("Não é possível inserir a biblioteca dentro dela mesma.\n");
+        else{
+            FILE *novo = fopen(argv[i], "rb");
+            if(novo != NULL){
+                lidos = escreverArquivoNoGBV(GBV, novo, biblio->sup); //a funcao retorna a quantidade de bytes lidos
+                biblio->dir = adicionarArquivoNoDiretorio(biblio, argv, i, lidos, GBV);
+                fclose(novo);
+            }else{
+                printf("Documento %s inexistente\n", argv[i]);
+            }
         }
     }
     escreverSuperblocoDiretorio(biblio, GBV);
@@ -156,6 +201,7 @@ void removerDados(biblioteca *biblio, int posicaoRepetida, FILE *GBV){
 
 void gbvRemover(int tam, char *argv[], biblioteca *biblio, FILE *GBV){
     int posicaoRepetida = 0;
+    int posicaoRepetida = 0;
     if(tam <= 3){ //se nao tiver arquivos para adicionar
         printf("Comando invalido, rerun com: ./gbv -r %s <documento que deseja remover> \n", argv[2]);
         return;
@@ -163,8 +209,6 @@ void gbvRemover(int tam, char *argv[], biblioteca *biblio, FILE *GBV){
     for(int i = 3; i < tam; i++){ //se tiver 
         if(verificarRepeticao(biblio->dir, argv[i], biblio->sup->numeroDoc, &posicaoRepetida) == 1){ //procura se existe o nome digitado
             removerDados(biblio, posicaoRepetida, GBV);
-            if(posicaoRepetida != biblio->sup->numeroDoc - 1) //caso ele nao seja o ultimo, para nn ficar uma lacuna no diretorio, eu coloco o ultimo no lugar
-                biblio->dir[posicaoRepetida] = biblio->dir[biblio->sup->numeroDoc - 1];
             
             biblio->sup->numeroDoc--;
             if(biblio->sup->numeroDoc == 0){
@@ -206,7 +250,7 @@ void avancarOuVoltar(char teclaEscolhida, long int inicioLeitura, long int fimLe
     }
 }
 
-void vizualizacaoArquivo(FILE *GBV, documento *dir, int posicaoRepetida){
+void vizualizacaoArquivo(documento *dir, FILE *GBV, int posicaoRepetida){
     char teclaEscolhida;
     char buffer[BUFFER_SIZE_VISUALIZAR + 1];
 
@@ -253,7 +297,7 @@ void gbvVisualizar(int tam, char *argv[], documento *dir, FILE *GBV){
     }
     int posicaoRepetida = 0;
     if(verificarRepeticao(dir, argv[3], tam, &posicaoRepetida) == 1){
-        vizualizacaoArquivo(GBV, dir, posicaoRepetida);
+        vizualizacaoArquivo(dir, GBV, posicaoRepetida);
     }
     else{
         printf("Documento inexistente no container\n");
@@ -311,33 +355,38 @@ void gbvOrdenar(char *argv[], biblioteca *biblio, FILE *GBV){
     fwrite(biblio->dir, sizeof(documento), biblio->sup->numeroDoc, GBV);
 }
 
+int extrairDados(char *argv[], documento *dir, int posicaoRepetida, FILE *GBV){
+    FILE *temp = fopen(argv[3], "wb");
+    if(temp == NULL)
+        return(0);
+    char buffer[BUFFER_SIZE_VISUALIZAR];
+    long int fimLeitura = dir[posicaoRepetida].offset + dir[posicaoRepetida].tamanho;
+    long int atualLeitura = dir[posicaoRepetida].offset;
+    long int tamanhoLeitura = 0;
+    long int restante = 0;
+    while(1){
+        restante = fimLeitura - atualLeitura;
+
+        if(restante <= 0)
+            return(1);
+        if(restante >= BUFFER_SIZE_VISUALIZAR)
+            tamanhoLeitura = BUFFER_SIZE_ESCRITA;
+        else
+            tamanhoLeitura = restante;
+        fseek(GBV, atualLeitura, SEEK_SET);
+        fread(buffer, 1, tamanhoLeitura, GBV);
+        fwrite(buffer, 1, tamanhoLeitura, temp);
+
+        atualLeitura += tamanhoLeitura;
+    }
+    fclose(temp);
+}
+
 void gbvExtrair(char *argv[], biblioteca *biblio, FILE *GBV){
     int posicaoRepetida = 0;
-    char buffer[BUFFER_SIZE_VISUALIZAR];
-    //procurar onde o nome esta no container(isso eh, se ele existe)
-    //ler os dados dele e colocar no outro arquivo
     if(verificarRepeticao(biblio->dir, argv[3], biblio->sup->numeroDoc, &posicaoRepetida) == 1){
-        FILE *temp = fopen(argv[3], "wb");
-        long int inicioLeitura = biblio->dir[posicaoRepetida].offset;
-        long int fimLeitura = inicioLeitura + biblio->dir[posicaoRepetida].tamanho;
-        long int atualLeitura = inicioLeitura;
-        long int tamanhoLeitura = 0;
-        long int restante = 0;
-        while(1){
-            restante = fimLeitura - atualLeitura;
-            if(restante < 0)
-                break;
-            if(restante >= BUFFER_SIZE_VISUALIZAR)
-                tamanhoLeitura = BUFFER_SIZE_ESCRITA;
-            else
-                tamanhoLeitura = restante;
-            fseek(GBV, atualLeitura, SEEK_SET);
-            fread(buffer, 1, tamanhoLeitura, GBV);
-            fwrite(buffer, 1, tamanhoLeitura, temp);
-
-            atualLeitura += tamanhoLeitura;
-        }
-        fclose(temp);
+        if(extrairDados(argv, biblio->dir, posicaoRepetida, GBV) == 0)
+            printf("Erro ao extrair dados\n");
     }else{
         printf("Documento inexistente na biblioteca\n"); //se nao existe o nome do arquivo nn tem como remover
         return;
